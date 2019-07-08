@@ -1,2 +1,2 @@
-mod status;
-mod storage;
+pub mod status;
+pub mod storage;

@@ -16,10 +16,14 @@
 
 extern crate protobuf;
 
+mod proto;
+
+use proto::storage::{
+    DeleteRequest, ReadRequest, StorageOperationRequest, StorageOperationResponse, WriteRequest,
+};
+use protobuf::Message;
 use std::cell::RefCell;
 use std::io::{Read, Write};
-
-mod proto;
 
 type Handle = u64;
 
@@ -27,6 +31,7 @@ type Handle = u64;
 pub const LOGGING_CHANNEL_HANDLE: Handle = 1;
 pub const GRPC_CHANNEL_HANDLE: Handle = 2;
 pub const GRPC_METHOD_NAME_CHANNEL_HANDLE: Handle = 3;
+pub const STORAGE_CHANNEL_HANDLE: Handle = 4;
 
 // TODO: Implement panic handler.
 
@@ -131,4 +136,66 @@ pub extern "C" fn oak_handle_grpc_call() {
             panic!("gRPC call with no loaded Node");
         }
     });
+}
+
+pub fn execute_storage_operation(
+    operation_request: &StorageOperationRequest,
+) -> StorageOperationResponse {
+    writeln!(
+        logging_channel(),
+        "StorageOperationRequest: {}",
+        protobuf::text_format::print_to_string(operation_request)
+    )
+    .unwrap();
+
+    let mut storage_channel = Channel::new(STORAGE_CHANNEL_HANDLE);
+    operation_request
+        .write_to_writer(&mut storage_channel)
+        .unwrap();
+    let response: StorageOperationResponse =
+        protobuf::parse_from_reader(&mut storage_channel).unwrap();
+    writeln!(
+        logging_channel(),
+        "StorageOperationResponse: {}",
+        protobuf::text_format::print_to_string(&response)
+    )
+    .unwrap();
+
+    return response;
+}
+
+pub fn storage_read(storage_name: &Vec<u8>, name: &Vec<u8>) -> Vec<u8> {
+    let mut read_request = ReadRequest::new();
+    read_request.name = name.clone();
+
+    let mut operation_request = StorageOperationRequest::new();
+    operation_request.storage_name = storage_name.clone();
+    operation_request.set_read_request(read_request);
+
+    let operation_response = execute_storage_operation(&operation_request);
+
+    return operation_response.get_read_response().get_value().to_vec();
+}
+
+pub fn storage_write(storage_name: &Vec<u8>, name: &Vec<u8>, value: &Vec<u8>) {
+    let mut write_request = WriteRequest::new();
+    write_request.name = name.clone();
+    write_request.value = value.clone();
+
+    let mut operation_request = StorageOperationRequest::new();
+    operation_request.storage_name = storage_name.clone();
+    operation_request.set_write_request(write_request);
+
+    execute_storage_operation(&operation_request);
+}
+
+pub fn storage_delete(storage_name: &Vec<u8>, name: &Vec<u8>) {
+    let mut delete_request = DeleteRequest::new();
+    delete_request.name = name.clone();
+
+    let mut operation_request = StorageOperationRequest::new();
+    operation_request.storage_name = storage_name.clone();
+    operation_request.set_delete_request(delete_request);
+
+    execute_storage_operation(&operation_request);
 }

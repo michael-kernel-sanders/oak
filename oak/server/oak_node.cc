@@ -23,8 +23,10 @@
 
 #include "absl/memory/memory.h"
 #include "asylo/util/logging.h"
+#include "grpcpp/create_channel.h"
 #include "oak/server/buffer_channel.h"
 #include "oak/server/logging_channel.h"
+#include "oak/server/storage/storage_channel.h"
 #include "oak/server/wabt_output.h"
 #include "src/binary-reader.h"
 #include "src/error-formatter.h"
@@ -317,6 +319,13 @@ grpc::Status OakNode::ProcessModuleInvocation(grpc::GenericServerContext* contex
   std::unique_ptr<Channel> logging_channel = absl::make_unique<LoggingChannel>();
   channels_[LOGGING_CHANNEL_HANDLE] = std::move(logging_channel);
   LOG(INFO) << "Created logging channel";
+
+  // TODO: Move to initialization method.
+  std::unique_ptr<Channel> storage_channel =
+      absl::make_unique<StorageChannel>(oak::Storage::NewStub(
+          grpc::CreateChannel("localhost:7867", grpc::InsecureChannelCredentials())));
+  channels_[STORAGE_CHANNEL_HANDLE] = std::move(storage_channel);
+  LOG(INFO) << "Created Storage method channel";
 
   wabt::Stream* trace_stream = nullptr;
   wabt::interp::Thread::Options thread_options;

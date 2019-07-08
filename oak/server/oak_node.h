@@ -34,6 +34,7 @@ using Handle = uint64_t;
 const Handle LOGGING_CHANNEL_HANDLE = 1;
 const Handle GRPC_CHANNEL_HANDLE = 2;
 const Handle GRPC_METHOD_NAME_CHANNEL_HANDLE = 3;
+const Handle STORAGE_CHANNEL_HANDLE = 4;
 
 class OakNode final : public Node::Service {
  public:
